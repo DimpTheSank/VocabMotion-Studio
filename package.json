@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "render:sample": "remotion render remotion/index.tsx VocabLesson out/demo.mp4"
+    "render:sample": "node scripts/render.mjs"
   },
   "dependencies": {
     "@remotion/player": "^4.0.360",
