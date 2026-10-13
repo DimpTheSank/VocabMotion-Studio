@@ -1,0 +1,1 @@
+import React from 'react';import {Composition,registerRoot} from 'remotion';import {VocabularyVideo} from '../components/VocabularyVideo';import {defaultLesson,FPS,FRAMES} from '../lib/lesson';registerRoot(()=> <Composition id="VocabLesson" component={VocabularyVideo} width={720} height={1280} fps={FPS} durationInFrames={FRAMES} defaultProps={{lesson:defaultLesson}}/>);
