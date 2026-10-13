@@ -1,0 +1,7 @@
+export type SceneStyle='journey'|'chart'|'dialogue'|'process';
+export type Lesson={word:string;ipa:string;meaning:string;contrast:string;contrastMeaning:string;example:string;question:string;answer:string;explanation:string;voiceover:string;audioUrl:string;sceneStyle:SceneStyle};
+export const defaultLesson:Lesson={word:'facilitate',ipa:'/fəˈsɪlɪteɪt/',meaning:'làm cho dễ dàng, thuận lợi',contrast:'hinder',contrastMeaning:'cản trở',example:'Modern technology has greatly facilitated communication between people in different countries.',question:'Online platforms can ____ learning by giving students access to materials at any time.',answer:'facilitate',explanation:'Facilitate means to make a process easier.',voiceover:'Facilitate means to make something easier. Hinder means to make progress difficult.',audioUrl:'',sceneStyle:'journey'};
+export const FPS=30;
+export const SCENES=[{id:'intro',seconds:4},{id:'concept',seconds:8},{id:'contrast',seconds:6},{id:'example',seconds:6},{id:'quiz',seconds:6}] as const;
+export const FRAMES=SCENES.reduce((t,s)=>t+s.seconds*FPS,0);
+export function suggestStyle(words:string):SceneStyle{const w=words.toLowerCase();if(/increase|decrease|rise|fall|grow|decline|fluctuat/.test(w))return 'chart';if(/negotiate|compromise|agree|communicat|debate/.test(w))return 'dialogue';if(/efficient|inefficient|process|produce|workflow/.test(w))return 'process';return 'journey'}
