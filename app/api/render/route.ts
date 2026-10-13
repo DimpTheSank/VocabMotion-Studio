@@ -29,7 +29,19 @@ export async function POST(req:NextRequest){
   }
   let lesson:unknown;
   try{lesson=await req.json()}catch{return NextResponse.json({error:'Invalid JSON'},{status:400})}
-  if(!lesson||typeof lesson!=='object'||typeof (lesson as Record<string,unknown>).word!=='string'||typeof (lesson as Record<string,unknown>).example!=='string'){
+  const payload=lesson as Record<string,unknown>|null;
+  const storyboard=payload?.storyboard as Record<string,unknown>|undefined;
+  const isStoryboard=!!storyboard&&Array.isArray(storyboard.scenes)&&storyboard.scenes.length===5
+    &&storyboard.scenes.every((s:unknown)=>{
+      if(!s||typeof s!=='object')return false;
+      const scene=s as Record<string,unknown>;
+      return typeof scene.title==='string'&&typeof scene.caption==='string'
+        &&typeof scene.narration==='string'&&['journey','chart','dialogue','process'].includes(String(scene.style))
+        &&typeof scene.blocked==='boolean'&&Number.isInteger(scene.seconds)
+        &&Number(scene.seconds)>=3&&Number(scene.seconds)<=10;
+    });
+  const isLesson=!!payload&&typeof payload.word==='string'&&typeof payload.example==='string';
+  if(!isLesson&&!isStoryboard){
     return NextResponse.json({error:'Invalid lesson'},{status:400});
   }
   const dir=await mkdtemp(path.join(tmpdir(),'vocabmotion-'));
