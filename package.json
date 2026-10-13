@@ -1,0 +1,25 @@
+{
+  "name": "vocabmotion-studio",
+  "version": "0.2.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "render:sample": "remotion render remotion/index.tsx VocabLesson out/demo.mp4"
+  },
+  "dependencies": {
+    "@remotion/player": "^4.0.360",
+    "@remotion/bundler": "^4.0.360",
+    "@remotion/renderer": "^4.0.360",
+    "remotion": "^4.0.360",
+    "next": "^15.5.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.8.0",
+    "@types/react": "^19.0.0",
+    "@types/node": "^22.0.0"
+  }
+}
