@@ -43,9 +43,9 @@ function Layer({layer}:{layer:SceneLayer}){
   const alpha=layer.motion==='none'?1:ease;
   return <g transform={`translate(${layer.x*6+offset} ${layer.y*4.4+vertical}) scale(${size})`} opacity={alpha}><Shape asset={layer.asset}/></g>;
 }
-export function SceneBuilder({background='abstract',layers=[]}:{background?:BackgroundKind;layers?:SceneLayer[]}){
+export function SceneBuilder({background='abstract',layers=[],imageDataUrl}:{background?:BackgroundKind;layers?:SceneLayer[];imageDataUrl?:string}){
   return <svg viewBox="0 0 600 440" width="100%" style={{display:'block',borderRadius:22,overflow:'hidden'}}>
-    <Backdrop kind={background}/>
+    {imageDataUrl?.startsWith('data:image/')?<image href={imageDataUrl} x="0" y="0" width="600" height="440" preserveAspectRatio="xMidYMid slice"/>:<Backdrop kind={background}/>}
     {layers.map((layer,index)=><Layer key={index} layer={layer}/>)}
   </svg>;
 }
