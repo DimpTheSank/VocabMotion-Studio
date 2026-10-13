@@ -1,16 +1,26 @@
 import {NextRequest,NextResponse} from 'next/server';
 import {timingSafeEqual} from 'node:crypto';
 import {SceneStyle} from '../../../../lib/lesson';
-import {Storyboard,StoryScene} from '../../../../lib/storyboard';
+import {Storyboard,StoryScene,ASSETS,MOTIONS,BACKGROUNDS,validLayer} from '../../../../lib/storyboard';
 
 export const runtime='nodejs';
 export const maxDuration=60;
 
 const styles:SceneStyle[]=['journey','chart','dialogue','process'];
+const layerSchema={
+  type:'object',
+  additionalProperties:false,
+  required:['asset','x','y','scale','motion','delay'],
+  properties:{
+    asset:{type:'string',enum:ASSETS},
+    x:{type:'number'},y:{type:'number'},scale:{type:'number'},
+    motion:{type:'string',enum:MOTIONS},delay:{type:'number'}
+  }
+};
 const sceneSchema={
   type:'object',
   additionalProperties:false,
-  required:['title','caption','narration','style','blocked','seconds','objects'],
+  required:['title','caption','narration','style','blocked','seconds','objects','background','layers','imagePrompt'],
   properties:{
     title:{type:'string'},
     caption:{type:'string'},
@@ -18,7 +28,10 @@ const sceneSchema={
     style:{type:'string',enum:styles},
     blocked:{type:'boolean'},
     seconds:{type:'integer'},
-    objects:{type:'array',items:{type:'string'}}
+    objects:{type:'array',items:{type:'string'}},
+    background:{type:'string',enum:BACKGROUNDS},
+    layers:{type:'array',items:layerSchema},
+    imagePrompt:{type:'string'}
   }
 };
 const storyboardSchema={
@@ -45,7 +58,10 @@ function isScene(value:unknown):value is StoryScene{
     &&styles.includes(s.style as SceneStyle)
     &&typeof s.blocked==='boolean'
     &&Number.isInteger(s.seconds)&&Number(s.seconds)>=3&&Number(s.seconds)<=10
-    &&Array.isArray(s.objects)&&s.objects.length<=6&&s.objects.every(x=>typeof x==='string'&&x.length<=50);
+    &&Array.isArray(s.objects)&&s.objects.length<=6&&s.objects.every(x=>typeof x==='string'&&x.length<=50)
+    &&BACKGROUNDS.includes(s.background as typeof BACKGROUNDS[number])
+    &&Array.isArray(s.layers)&&s.layers.length>=2&&s.layers.length<=5&&s.layers.every(validLayer)
+    &&typeof s.imagePrompt==='string'&&s.imagePrompt.length<=450;
 }
 function isStoryboard(value:unknown):value is Storyboard{
   if(!value||typeof value!=='object')return false;
@@ -82,8 +98,11 @@ export async function POST(request:NextRequest){
   const prompt=[
     'Create a 5-scene storyboard for a vertical 9:16 English vocabulary explainer video for Vietnamese IELTS/TOEIC students.',
     'Be accurate and visually teach the meaning, not just display definitions.',
-    'The renderer supports exactly four reusable SVG styles: journey (truck, bridge, roadblock), chart (animated bars), dialogue (two people), process (three-step workflow).',
-    'Choose the closest supported visual style for EACH scene. Do not imply objects in the objects array are automatically drawn: they are planning notes only.',
+    'The scene builder can compose SVG layers independently. Supported assets: '+ASSETS.join(', ')+'. Supported backgrounds: '+BACKGROUNDS.join(', ')+'. Supported motions: '+MOTIONS.join(', ')+'.',
+    'Every scene MUST include 2-5 visible layers with appropriate asset names, normalized x/y coordinates from 0 to 100, scale 0.4 to 2, delay 0 to 4 seconds, and an animation.',
+    'Place objects in the central illustration area without overlapping heavily. Different vocabulary concepts must have different combinations of assets and motions.',
+    'Write imagePrompt as an optional high-quality, text-free 2D educational background illustration prompt for AI image generation. It must fit the scene and leave space for SVG foreground objects.',
+    'Keep the legacy style field for compatibility, but prioritize the new background and layers for actual visuals. The objects array is planning notes only.',
     'Use 5 scenes in order: hook, meaning/metaphor, contrast or second explanation, contextual example, quiz.',
     'Keep every scene between 3 and 10 seconds; aim for 28 to 38 seconds total.',
     'Use short on-screen English titles and captions, natural English narration, and accurate Vietnamese translations when useful.',
@@ -99,7 +118,7 @@ export async function POST(request:NextRequest){
       body:JSON.stringify({
         model:process.env.OPENAI_STORYBOARD_MODEL||'gpt-4o-mini',
         temperature:0.6,
-        max_tokens:2500,
+        max_tokens:4300,
         messages:[
           {role:'system',content:'You are an expert ESL instructional designer and motion storyboard director. Return only the requested JSON schema.'},
           {role:'user',content:prompt}
