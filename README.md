@@ -1,4 +1,4 @@
-# VocabMotion Studio v0.3 — AI Storyboard MVP
+# VocabMotion Studio v0.4 — Hybrid Scene Builder
 
 Next.js + Remotion vocabulary animation editor with a server-side OpenAI storyboard generator.
 
@@ -9,6 +9,7 @@ Set these Environment Variables in Vercel → Project → Settings → Environme
 - `OPENAI_API_KEY` — OpenAI API key (server only; never use NEXT_PUBLIC_)
 - `STUDIO_ACCESS_CODE` — a long random password you choose to protect the paid AI endpoint
 - `OPENAI_STORYBOARD_MODEL` — optional; defaults to `gpt-4o-mini`
+- `OPENAI_IMAGE_MODEL` — optional; defaults to `gpt-image-1` (image generation may require account verification and separate billing)
 
 **Important:** GitHub repo and Vercel deployment may be public. The AI route intentionally refuses to run without `STUDIO_ACCESS_CODE`. This prevents anonymous visitors from spending your API budget. Do not commit the values to GitHub. Redeploy after adding or changing env vars.
 
@@ -16,9 +17,9 @@ The UI has a Studio Access Code field. Enter the password you set in Vercel, fil
 
 ## What AI generates
 
-A five-scene storyboard in strict JSON: title, caption, narration, supported SVG scene style, positive/blocked animation state, duration, and object notes. Scenes can be edited and previewed with Remotion Player.
+A five-scene storyboard in strict JSON: title, caption, narration, SVG scene background, 2–5 individual SVG asset layers with positions, sizes, motions and delays, and an optional AI image prompt. Each layer can be edited and previewed with Remotion Player.
 
-The **objects** array contains creative direction only. New objects are **not** dynamically drawn yet: animation currently uses four reusable SVG styles (journey, chart, dialogue, process). Narration is text only; there is no TTS/audio synchronization yet.
+The scene builder currently supports **18 predefined SVG objects, 5 backgrounds and 7 motions**. AI composes these from a controlled asset vocabulary; it cannot draw an arbitrary new SVG object on its own. Legacy four-template lessons remain supported.\n\nClick **Tạo nền bằng AI** on an individual scene to make one paid image generation request. This is opt-in and asks for confirmation. The generated WebP is embedded in that scene's JSON as a base64 data URL (larger file, not cloud-persisted). SVG layers still animate above the image. A generated background is not a rigged or articulated animated character. Image API support and billing depend on the OpenAI account. Narration is text only; there is no TTS/audio synchronization yet.
 
 ## Run locally
 
@@ -58,8 +59,9 @@ Rendering requires Chromium and Remotion dependencies installed on the local mac
 
 - Next.js editing UI and Remotion preview
 - Protected server-side OpenAI storyboard generation (strict JSON schema)
-- Per-scene text, duration, visual template and obstacle editing
+- Per-scene text, duration, SVG asset/background/motion/position editing
+- Opt-in AI-generated image background for individual scenes (paid API, embedded in JSON)
 - JSON import/export and local Node MP4 renderer
-- No image generation, voice synthesis, batch generation or cloud render worker yet
+- No animated image character rigging, voice synthesis, batch generation or cloud render worker yet
 
-The code was committed to GitHub. Production build and live API generation still need validation after redeploy.
+The code was committed to GitHub. Production build, AI text generation and AI image generation still need validation after redeploy. On a public site, a shared access code is basic protection only; production use should add user authentication and rate limits.
