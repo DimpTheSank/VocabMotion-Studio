@@ -142,7 +142,7 @@ export default function Home(){
             </select>
             <div className="layer-grid">
               {([['x','X (%)',0,100,1],['y','Y (%)',0,100,1],['scale','Kích thước',0.4,2,0.1],['delay','Delay (s)',0,4,0.1]] as const).map(([key,label,min,max,step])=>
-                <div key={key}><label>{label}</label><input type="number" min={min} max={max} step={step} value={layer[key]} onChange={e=>updateLayer(index,j,{[key]:Math.max(min,Math.min(max,Number(e.target.value)||0))} as Partial<SceneLayer>)}}/></div>
+                <div key={key}><label>{label}</label><input type="number" min={min} max={max} step={step} value={layer[key]} onChange={e=>updateLayer(index,j,{[key]:Math.max(min,Math.min(max,Number(e.target.value)||0))} as Partial<SceneLayer>)}/></div>
               )}
             </div>
           </div>)}
