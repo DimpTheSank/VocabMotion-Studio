@@ -4,7 +4,7 @@ import {Player} from '@remotion/player';
 import {VocabularyVideo} from '../components/VocabularyVideo';
 import {StoryboardVideo} from '../components/StoryboardVideo';
 import {defaultLesson,suggestStyle,FPS,FRAMES,Lesson,SceneStyle} from '../lib/lesson';
-import {Storyboard,StoryScene,storyboardFrames} from '../lib/storyboard';
+import {Storyboard,StoryScene,SceneLayer,ASSETS,MOTIONS,BACKGROUNDS,storyboardFrames} from '../lib/storyboard';
 
 const styleNames:Record<SceneStyle,string>={journey:'Journey — xe tải / cầu / vật cản',chart:'Chart — biểu đồ',dialogue:'Dialogue — hội thoại',process:'Process — quy trình'};
 const styles=Object.keys(styleNames) as SceneStyle[];
@@ -15,11 +15,40 @@ export default function Home(){
   const [notes,setNotes]=useState('');
   const [busy,setBusy]=useState(false);
   const [generating,setGenerating]=useState(false);
+  const [generatingImage,setGeneratingImage]=useState<number|null>(null);
   const [msg,setMsg]=useState('');
   const update=(key:keyof Lesson,value:string)=>setData(prev=>({...prev,[key]:value}));
-  const updateScene=(index:number,key:keyof StoryScene,value:string|number|boolean|string[])=>setStoryboard(prev=>prev?{
+  const updateScene=(index:number,key:keyof StoryScene,value:string|number|boolean|string[]|SceneLayer[])=>setStoryboard(prev=>prev?{
     ...prev,scenes:prev.scenes.map((scene,i)=>i===index?{...scene,[key]:value}:scene)
   }:prev);
+
+  function updateLayer(sceneIndex:number,layerIndex:number,patch:Partial<SceneLayer>){
+    setStoryboard(prev=>prev?{...prev,scenes:prev.scenes.map((scene,i)=>i===sceneIndex?{
+      ...scene,layers:(scene.layers||[]).map((layer,j)=>j===layerIndex?{...layer,...patch}:layer)
+    }:scene)}:prev);
+  }
+  function addLayer(index:number){
+    setStoryboard(prev=>prev?{...prev,scenes:prev.scenes.map((scene,i)=>i===index?{
+      ...scene,layers:[...(scene.layers||[]),{asset:'person',x:50,y:55,scale:1,motion:'pop',delay:0}].slice(0,5) as SceneLayer[]
+    }:scene)}:prev);
+  }
+  async function generateSceneImage(index:number){
+    const scene=storyboard?.scenes[index];
+    if(!scene)return;
+    if(!window.confirm('Tạo hình AI cho cảnh này sẽ phát sinh chi phí OpenAI API. Tiếp tục?'))return;
+    setGeneratingImage(index);setMsg('Đang tạo hình AI cho cảnh '+(index+1)+'...');
+    try{
+      const res=await fetch('/api/ai/image',{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({accessCode,prompt:scene.imagePrompt||scene.caption})
+      });
+      const result=await res.json();
+      if(!res.ok)throw new Error(result.error||'Image generation failed');
+      updateScene(index,'imageDataUrl',result.imageDataUrl);
+      setMsg('Đã tạo nền AI cho cảnh '+(index+1)+'. Các lớp SVG vẫn có thể chuyển động phía trên.');
+    }catch(e){setMsg(e instanceof Error?e.message:'Image generation failed')}
+    finally{setGeneratingImage(null)}
+  }
 
   async function generateStoryboard(){
     setGenerating(true);setMsg('AI đang lên storyboard...');
@@ -32,7 +61,7 @@ export default function Home(){
       const result=await res.json();
       if(!res.ok)throw new Error(result.error||'AI generation failed');
       setStoryboard(result.storyboard as Storyboard);
-      setMsg('Đã tạo 5 cảnh. Bạn có thể chỉnh sửa từng cảnh và xem preview.');
+      setMsg('Đã tạo 5 cảnh với các lớp SVG chuyển động. Có thể chỉnh từng lớp hoặc tạo nền AI riêng.');
     }catch(e){setMsg(e instanceof Error?e.message:'AI generation failed')}
     finally{setGenerating(false)}
   }
@@ -72,8 +101,8 @@ export default function Home(){
   }
   return <main>
     <section className="panel">
-      <h1>VocabMotion Studio v0.3</h1>
-      <p>AI Storyboard Generator • Tạo video từ vựng IELTS/TOEIC bằng Remotion.</p>
+      <h1>VocabMotion Studio v0.4</h1>
+      <p>Hybrid Scene Builder • AI phối hợp các asset SVG và tạo nền minh họa theo yêu cầu.</p>
       {([['word','Từ vựng'],['ipa','IPA'],['meaning','Nghĩa'],['contrast','Từ đối lập (optional)'],['contrastMeaning','Nghĩa từ đối lập'],['example','Ví dụ IELTS']] as const).map(([key,label])=>
         <div key={key}><label>{label}</label>{key==='example'?<textarea rows={3} value={data[key]} onChange={e=>update(key,e.target.value)}/>:<input value={data[key]} onChange={e=>update(key,e.target.value)}/>}</div>
       )}
@@ -98,7 +127,34 @@ export default function Home(){
           </select>
           <label>Thời lượng (3–10 giây)</label><input type="number" min={3} max={10} value={scene.seconds} onChange={e=>updateScene(index,'seconds',Math.max(3,Math.min(10,Number(e.target.value)||3)))}/>
           <label><input type="checkbox" style={{width:'auto',marginRight:8}} checked={scene.blocked} onChange={e=>updateScene(index,'blocked',e.target.checked)}/>Trở ngại / ý nghĩa tiêu cực</label>
-          <p className="note">Objects (ghi chú ý tưởng): {scene.objects.join(', ')||'—'}</p>
+          <label>Bối cảnh</label>
+          <select value={scene.background||'abstract'} onChange={e=>updateScene(index,'background',e.target.value)}>
+            {BACKGROUNDS.map(bg=><option key={bg} value={bg}>{bg}</option>)}
+          </select>
+          <h4>Scene Builder • các đối tượng SVG</h4>
+          {(scene.layers||[]).map((layer,j)=><div key={j} className="layer-editor">
+            <div className="layer-header"><strong>Layer {j+1}</strong><button className="secondary" onClick={()=>updateScene(index,'layers',(scene.layers||[]).filter((_,k)=>k!==j))}>Xóa</button></div>
+            <label>Đối tượng</label><select value={layer.asset} onChange={e=>updateLayer(index,j,{asset:e.target.value as SceneLayer['asset']})}>
+              {ASSETS.map(asset=><option key={asset} value={asset}>{asset}</option>)}
+            </select>
+            <label>Chuyển động</label><select value={layer.motion} onChange={e=>updateLayer(index,j,{motion:e.target.value as SceneLayer['motion']})}>
+              {MOTIONS.map(motion=><option key={motion} value={motion}>{motion}</option>)}
+            </select>
+            <div className="layer-grid">
+              {([['x','X (%)',0,100,1],['y','Y (%)',0,100,1],['scale','Kích thước',0.4,2,0.1],['delay','Delay (s)',0,4,0.1]] as const).map(([key,label,min,max,step])=>
+                <div key={key}><label>{label}</label><input type="number" min={min} max={max} step={step} value={layer[key]} onChange={e=>updateLayer(index,j,{[key]:Math.max(min,Math.min(max,Number(e.target.value)||0))})}/></div>
+              )}
+            </div>
+          </div>)}
+          <div className="actions"><button className="secondary" disabled={(scene.layers||[]).length>=5} onClick={()=>addLayer(index)}>+ Thêm đối tượng</button></div>
+          <h4>AI Image — nền tùy chỉnh (tùy chọn, có phí API)</h4>
+          <label>Mô tả hình nền</label><textarea rows={2} value={scene.imagePrompt||''} maxLength={450} onChange={e=>updateScene(index,'imagePrompt',e.target.value)} placeholder="A cozy classroom with warm daylight..."/>
+          <div className="actions">
+            <button disabled={generatingImage!==null||!accessCode||!(scene.imagePrompt||scene.caption).trim()} onClick={()=>generateSceneImage(index)}>{generatingImage===index?'Đang tạo hình...':'Tạo nền bằng AI'}</button>
+            {scene.imageDataUrl&&<button className="secondary" onClick={()=>updateScene(index,'imageDataUrl','')}>Xóa nền AI</button>}
+          </div>
+          {scene.imageDataUrl&&<p className="note">Đã có nền AI. Hình được lưu trong JSON khi tải xuống (file có thể lớn).</p>}
+          <p className="note">Ghi chú ý tưởng: {(scene.objects||[]).join(', ')||'—'}</p>
         </div>)}
       </>:<>
         <label>Template minh họa mặc định</label>
@@ -113,7 +169,7 @@ export default function Home(){
         <label>Nhập JSON <input type="file" accept=".json" onChange={e=>importJson(e.target.files?.[0])}/></label>
       </div>
       <p className="note" role="status">{msg}</p>
-      <p className="note">AI tạo storyboard và lời thoại, nhưng chưa tạo giọng đọc hoặc hình mới. Các hình minh họa vẫn dùng 4 template SVG. MP4 trên Vercel cần render worker riêng.</p>
+      <p className="note">Scene Builder hỗ trợ các đối tượng SVG độc lập và nền AI theo từng cảnh (chỉ khi bạn bấm tạo). Nền AI không tự biến thành nhân vật có khớp chuyển động. Chưa có TTS. MP4 trên Vercel cần render worker riêng.</p>
     </section>
     <aside className="panel preview">
       <h2>Preview • 9:16</h2>
